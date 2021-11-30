@@ -18,3 +18,9 @@ The implementation would be based around what is given in this [MIT 6.824](https
 
 ## Improvements
 - Mock a distributed architecture by using docker for various processes, using TCP/IP instead of UNIX sockets.
+
+
+
+
+## Extras
+- Setting up a golang project modules and packages. 
