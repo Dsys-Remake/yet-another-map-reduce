@@ -15,3 +15,6 @@ The implementation would be based around what is given in this [MIT 6.824](https
 - A mr-out-X file should contain one line per Reduce function output. The line should be generated with the Go "%v %v" format, called with the key and value.
 - The worker should put intermediate Map output in files in the current directory, where your worker can later read them as input to Reduce tasks.
 - main/mrcoordinator.go expects mr/coordinator.go to implement a Done() method that returns true when the MapReduce job is completely finished; at that point, mrcoordinator.go will exit.
+
+## Improvements
+- Mock a distributed architecture by using docker for various processes, using TCP/IP instead of UNIX sockets.
