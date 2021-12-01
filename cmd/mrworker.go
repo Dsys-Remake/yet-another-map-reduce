@@ -13,9 +13,9 @@ package main
 import (
 	"fmt"
 	"log"
-	"yetanothermapreduce/mr"
 	"os"
 	"plugin"
+	"yetanothermapreduce/mr"
 )
 
 func main() {

@@ -11,9 +11,9 @@ package main
 
 import (
 	"fmt"
-	"yetanothermapreduce/mr"
 	"os"
 	"time"
+	"yetanothermapreduce/mr"
 )
 
 func main() {

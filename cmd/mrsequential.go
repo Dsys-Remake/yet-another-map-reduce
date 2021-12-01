@@ -10,10 +10,10 @@ import (
 	"fmt"
 	"io/ioutil"
 	"log"
-	"yetanothermapreduce/mr"
 	"os"
 	"plugin"
 	"sort"
+	"yetanothermapreduce/mr"
 )
 
 // for sorting by key.
