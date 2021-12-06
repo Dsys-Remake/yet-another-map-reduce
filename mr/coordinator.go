@@ -3,14 +3,16 @@ package mr
 import (
 	"fmt"
 	"log"
+	"net"
+	"net/http"
+	"net/rpc"
+	"os"
+	"sync"
 )
-import "net"
-import "os"
-import "net/rpc"
-import "net/http"
 
 type Coordinator struct {
 	// Your definitions here.
+	mu    sync.Mutex
 	tasks []Task
 }
 
@@ -44,6 +46,8 @@ func (c *Coordinator) Example(args *ExampleArgs, reply *ExampleReply) error {
 }
 
 func (c *Coordinator) AskForWork(args *AskForWorkArgs, reply *AskForWorkReply) error {
+	c.mu.Lock()
+	defer c.mu.Unlock()
 	for index, _ := range cr.tasks {
 		task := &cr.tasks[index]
 		if task.Status == UNASSIGNED {
