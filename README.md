@@ -31,12 +31,9 @@ The implementation would be based around what is given in this [MIT 6.824](https
 ### RPC Calls
 - Worker --> Coordinator (DemandTask){args: "", reply: {"map"/"reduce", filename}}
 - Worker --> Coordinator (TaskResult){args: map/reduce-taskName, reply: "Received"}
-```
-Note: Coordinator will have bgTask goroutine with a ticker for 10 seconds. If no reply comes from the channel, reset the task to "Queued" and then a Worker will pickup the task. 
-```
 
-```
-Note: Worker will keep asking the Coordinator for task every 2 seconds (using Sleep), if Coordinator can't be connected then Worker program will exit.
-```
+- Note: Coordinator will have bgTask goroutine with a ticker for 10 seconds. If no reply comes from the channel, reset the task to "Queued" and then a Worker will pickup the task. 
+- Note: Worker will keep asking the Coordinator for task every 2 seconds (using Sleep), if Coordinator can't be connected then Worker program will exit.
+
 ## Extras
 - Setting up a golang project modules and packages. 
