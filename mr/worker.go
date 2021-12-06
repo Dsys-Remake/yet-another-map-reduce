@@ -90,8 +90,23 @@ func CallForTask() TaskReply {
 
 	if !err {
 		reply.TaskType = ""
+		fmt.Printf("Worker process: %v will exit\n",args.WorkerId)
 	}
 	return reply
+}
+
+func CallForSubmit(taskReply TaskReply) {
+	args := SubmissionArgs{}
+	args.Filename = taskReply.Filename
+	args.TaskType = taskReply.TaskType
+
+	reply := SubmissionReply{}
+
+	err := call("Coordinator.SubmitTask", &args, &reply)
+
+	if !err {
+		fmt.Println("Error sending intermediate results to Coordinator")
+	}
 }
 //
 // send an RPC request to the coordinator, wait for the response.
@@ -112,6 +127,6 @@ func call(rpcname string, args interface{}, reply interface{}) bool {
 		return true
 	}
 
-	fmt.Println(err, args.WorkerId)
+	fmt.Println(err)
 	return false
 }
