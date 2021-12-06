@@ -5,11 +5,25 @@ import "net"
 import "os"
 import "net/rpc"
 import "net/http"
+import "sync"
 
+type workerStatus int
+
+const (
+	QUEUED workerStatus = iota
+	RUNNING
+	COMPLETED
+)
 
 type Coordinator struct {
 	// Your definitions here.
-
+	InputFilesLocation []string
+	MappingInputStatus map[string]int
+	IsMappingComplete bool
+	NumOfReduceTasks int
+	ReduceTasksStatus []int
+	IsReducingComplete bool
+	MLock sync.Mutex
 }
 
 // Your code here -- RPC handlers for the worker to call.
@@ -23,6 +37,8 @@ func (c *Coordinator) Example(args *ExampleArgs, reply *ExampleReply) error {
 	reply.Y = args.X + 1
 	return nil
 }
+
+func 
 
 
 //
@@ -64,6 +80,20 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 
 	// Your code here.
 
+	// Initialising the coordinator
+	c.IsReducingComplete = false
+	c.NumOfReduceTasks = nReduce
+	c.ReduceTasksStatus = make([]int, nReduce)
+	for i := 0; i < nReduce; ++i {
+		c.ReduceTasksStatus[i] = QUEUED
+	}
+
+	c.IsMappingComplete = false
+	c.MappingInputStatus = make(map[string]int)
+	for _, file := range files {
+		c.InputFilesLocation = append(c.InputFilesLocation, file)
+		c.MappingInputStatus[file] = QUEUED
+	}
 
 	c.server()
 	return &c
