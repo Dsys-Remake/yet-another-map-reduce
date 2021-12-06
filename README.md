@@ -19,8 +19,24 @@ The implementation would be based around what is given in this [MIT 6.824](https
 ## Improvements
 - Mock a distributed architecture by using docker for various processes, using TCP/IP instead of UNIX sockets.
 
+### Coordinator States
+- InputFilesLocation []string
+- MappingInputStatus map[string]int (Queued, Running, Completed)
+- IsMappingComplete - bool
+- NumOfReduceTasks - int
+- ReduceTasksStatus - map[string]int (Queued, Running, Completed)
+- IsReducingComplete - bool
+- Lock - for synchronisation
 
+### RPC Calls
+- Worker --> Coordinator (DemandTask){args: "", reply: {"map"/"reduce", filename}}
+- Worker --> Coordinator (TaskResult){args: map/reduce-taskName, reply: "Received"}
+```
+Note: Coordinator will have bgTask goroutine with a ticker for 10 seconds. If no reply comes from the channel, reset the task to "Queued" and then a Worker will pickup the task. 
+```
 
-
+```
+Note: Worker will keep asking the Coordinator for task every 2 seconds (using Sleep), if Coordinator can't be connected then Worker program will exit.
+```
 ## Extras
 - Setting up a golang project modules and packages. 
