@@ -1,9 +1,13 @@
 package mr
 
-import "fmt"
-import "log"
-import "net/rpc"
-import "hash/fnv"
+import (
+	"fmt"
+	"log"
+	"net/rpc"
+	"hash/fnv"
+	"os"
+	"time"
+)
 
 
 //
@@ -33,6 +37,23 @@ func Worker(mapf func(string, string) []KeyValue,
 
 	// Your worker implementation here.
 
+	for {
+		reply := CallForTask()
+
+		if reply.TaskType == "map" {
+
+		}
+		else if reply.TaskType == "reduce" {
+
+		}
+		else if reply.TaskType == "snooze" {
+			time.Sleep(2*time.Second)
+		}
+		else{
+			break
+		}
+	}
+
 	// uncomment to send the Example RPC to the coordinator.
 	// CallExample()
 
@@ -61,6 +82,17 @@ func CallExample() {
 	fmt.Printf("reply.Y %v\n", reply.Y)
 }
 
+func CallForTask() TaskReply {
+	args := TaskArgs{os.Getpid()}
+	reply := TaskReply{}
+
+	err := call("Coordinator.DemandTask", &args, &reply)
+
+	if !err {
+		reply.TaskType = ""
+	}
+	return reply
+}
 //
 // send an RPC request to the coordinator, wait for the response.
 // usually returns true.
@@ -80,6 +112,6 @@ func call(rpcname string, args interface{}, reply interface{}) bool {
 		return true
 	}
 
-	fmt.Println(err)
+	fmt.Println(err, args.WorkerId)
 	return false
 }
