@@ -1,12 +1,14 @@
 package mr
 
-import "fmt"
+import (
+	"fmt"
+	"os"
+)
 import "log"
 import "net/rpc"
 import "hash/fnv"
 
-
-//
+// KeyValue
 // Map functions return a slice of KeyValue.
 //
 type KeyValue struct {
@@ -15,7 +17,7 @@ type KeyValue struct {
 }
 
 //
-// use ihash(key) % NReduce to choose the reduce
+// use hash(key) % NReduce to choose the reduce
 // task number for each KeyValue emitted by Map.
 //
 func ihash(key string) int {
@@ -24,13 +26,13 @@ func ihash(key string) int {
 	return int(h.Sum32() & 0x7fffffff)
 }
 
-
-//
+// Worker
 // main/mrworker.go calls this function.
 //
 func Worker(mapf func(string, string) []KeyValue,
 	reducef func(string, []string) string) {
-
+	reply := AskForWork()
+	fmt.Println(reply)
 	// Your worker implementation here.
 
 	// uncomment to send the Example RPC to the coordinator.
@@ -38,7 +40,7 @@ func Worker(mapf func(string, string) []KeyValue,
 
 }
 
-//
+// CallExample
 // example function to show how to make an RPC call to the coordinator.
 //
 // the RPC argument and reply types are defined in rpc.go.
@@ -59,6 +61,18 @@ func CallExample() {
 
 	// reply.Y should be 100.
 	fmt.Printf("reply.Y %v\n", reply.Y)
+}
+
+func AskForWork() AskForWorkReply {
+	args := AskForWorkArgs{
+		WorkerId: os.Getpid(),
+	}
+
+	reply := AskForWorkReply{}
+
+	call("Coordinator.AskForWork", &args, &reply)
+
+	return reply
 }
 
 //
