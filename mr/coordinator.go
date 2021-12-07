@@ -120,7 +120,7 @@ func (c *Coordinator) SubmitTask(args *SubmissionArgs, reply *SubmissionReply) e
 		c.MappingInputStatus[file] = COMPLETED
 	} else if args.Tasktype == REDUCE {
 		var pos int
-		fmt.Sscanf(args.Filename, "mr-int-%d", &pos)
+		fmt.Sscanf(args.Filename, intermediateFilePrefix + "%d", &pos)
 
 		c.ReduceTasksStatus[pos] = COMPLETED
 	}
