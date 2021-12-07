@@ -1,14 +1,16 @@
 package mr
 
 import (
+	"bufio"
 	"fmt"
+	"hash/fnv"
 	"log"
 	"net/rpc"
-	"hash/fnv"
 	"os"
+	"sort"
+	"strconv"
 	"time"
 )
-
 
 //
 // Map functions return a slice of KeyValue.
@@ -41,9 +43,21 @@ func Worker(mapf func(string, string) []KeyValue,
 		reply := CallForTask()
 
 		if reply.Tasktype == MAP {
-
+			data, err := os.ReadFile(reply.Filename)
+			if err != nil {
+				return
+			}
+		
+			kv := mapf(reply.Filename, string(data))
+			storeKeyValuesToTempFile(kv, reply.ReduceWorkers)
+			CallForSubmit(reply)
+			// Call the map function 
 		} else if reply.Tasktype == REDUCE {
-
+			kv := getSortedKeyValuesFromTempFile(reply.Filename)
+			kvMap := removeDuplicateKeys(kv)
+			runReduceAndStore(reducef, kvMap, outputFileName(reply.Filename))
+			os.Remove(reply.Filename)
+			CallForSubmit(reply)
 		} else if reply.Tasktype == SNOOZE {
 			time.Sleep(time.Second)
 		} else{
@@ -56,28 +70,81 @@ func Worker(mapf func(string, string) []KeyValue,
 
 }
 
-//
-// example function to show how to make an RPC call to the coordinator.
-//
-// the RPC argument and reply types are defined in rpc.go.
-//
-func CallExample() {
-
-	// declare an argument structure.
-	args := ExampleArgs{}
-
-	// fill in the argument(s).
-	args.X = 99
-
-	// declare a reply structure.
-	reply := ExampleReply{}
-
-	// send the RPC request, wait for the reply.
-	call("Coordinator.Example", &args, &reply)
-
-	// reply.Y should be 100.
-	fmt.Printf("reply.Y %v\n", reply.Y)
+func outputFileName(tempFileName string) string {
+	var pos int
+	fmt.Sscanf(tempFileName, intermediateFilePrefix + "%d", &pos)
+	// log.Printf("%d %s",pos, tempFileName)
+	return outputFilePrefix + strconv.Itoa(pos)
 }
+func runReduceAndStore(reducef func(string, []string) string, kvMap map[string][]string, outFile string) {
+	file, err := os.OpenFile(outFile, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
+	if err  != nil {
+		return
+	}
+	defer file.Close()
+	for k, v := range kvMap {
+		output := reducef(k, v)
+		fmt.Fprintf(file, "%s\n", output)
+	}
+}
+func getSortedKeyValuesFromTempFile(fileName string) []KeyValue {
+	f, err := os.Open(fileName)
+	if err != nil {
+		return nil
+	}
+	defer f.Close()
+	list := []KeyValue{}
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		var key, value string
+		fmt.Sscanf(scanner.Text(), "%s %s", &key, &value)
+		list = append(list, KeyValue{Key: key, Value: value})
+	}
+
+	sort.Slice(list, func(i, j int) bool {
+		return list[i].Key < list[j].Key
+	})
+
+	return list
+}
+
+func removeDuplicateKeys(kv []KeyValue) map[string][]string {
+	res := make(map[string][]string)
+
+	for _, item := range kv {
+		res[item.Key] = append(res[item.Key], item.Value)
+	} 
+
+	return res
+}
+
+func storeKeyValuesToTempFile(kv []KeyValue, nReduce int) {
+	
+	separatedData := make([][]KeyValue, nReduce)
+	for _, item := range kv {
+		index := ihash(item.Key) % nReduce
+		separatedData[index] = append(separatedData[index], item)
+	}
+
+	for i, data := range separatedData {
+		if len(data) == 0 {
+			continue
+		}
+
+		tmpFileName := intermediateFilePrefix + strconv.Itoa(i)
+	
+		file, err := os.OpenFile(tmpFileName, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
+		if err != nil {
+			continue
+		}
+		defer file.Close()
+		for _, item := range data {
+			fmt.Fprintf(file, "%s %s\n", item.Key, item.Value)
+		}
+
+	}
+}
+
 
 func CallForTask() TaskReply {
 	args := TaskArgs{os.Getpid()}
@@ -86,7 +153,7 @@ func CallForTask() TaskReply {
 	err := call("Coordinator.DemandTask", &args, &reply)
 
 	if !err {
-		log.Printf("Worker process: %v will exit\n", args.WorkerId)
+		// log.Printf("Worker process: %v will exit\n", args.WorkerId)
 	}
 	return reply
 }
@@ -103,7 +170,7 @@ func CallForSubmit(taskReply TaskReply) {
 	err := call("Coordinator.SubmitTask", &args, &reply)
 
 	if !err {
-		log.Println("Error sending intermediate results to Coordinator")
+		// log.Println("Error sending intermediate results to Coordinator")
 	}
 }
 //

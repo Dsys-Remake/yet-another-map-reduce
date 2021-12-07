@@ -9,13 +9,6 @@ import "sync"
 import "fmt"
 import "time"
 
-type workerStatus int
-
-const (
-	QUEUED workerStatus = iota
-	RUNNING
-	COMPLETED
-)
 
 type Coordinator struct {
 	// Your definitions here.
@@ -30,18 +23,9 @@ type Coordinator struct {
 
 // Your code here -- RPC handlers for the worker to call.
 
-//
-// an example RPC handler.
-//
-// the RPC argument and reply types are defined in rpc.go.
-//
-func (c *Coordinator) Example(args *ExampleArgs, reply *ExampleReply) error {
-	reply.Y = args.X + 1
-	return nil
-}
 
 func (c *Coordinator) DemandTask(args *TaskArgs, reply *TaskReply) error {
-	log.Printf("Worker %d demanded task\n", args.WorkerId)
+	// log.Printf("Worker %d demanded task\n", args.WorkerId)
 	reply.Tasktype = SNOOZE
 
 	c.MLock.Lock()
@@ -52,6 +36,7 @@ func (c *Coordinator) DemandTask(args *TaskArgs, reply *TaskReply) error {
 			if status == QUEUED {
 				reply.Filename = file
 				reply.Tasktype = MAP
+				reply.ReduceWorkers = c.NumOfReduceTasks
 				c.MappingInputStatus[file] = RUNNING
 				break
 			}
@@ -59,8 +44,10 @@ func (c *Coordinator) DemandTask(args *TaskArgs, reply *TaskReply) error {
 	} else if !c.IsReducingComplete {
 		for i, status := range c.ReduceTasksStatus {
 			if status == QUEUED {
-				fmt.Sprintf(reply.Filename, "mr-int-%d", i)
+				formatString := intermediateFilePrefix + "%d"
+				reply.Filename = fmt.Sprintf(formatString , i)
 				reply.Tasktype = REDUCE
+				reply.ReduceWorkers = c.NumOfReduceTasks
 				c.ReduceTasksStatus[i] = RUNNING
 				break
 			}
@@ -81,7 +68,7 @@ func (c *Coordinator) startTimer(args TaskArgs, reply TaskReply) {
 	var pos int
 	var filename string
 	if reply.Tasktype == REDUCE {
-		fmt.Sscanf(reply.Filename, "mr-int-%d", &pos)
+		fmt.Sscanf(reply.Filename, intermediateFilePrefix + "%d", &pos)
 	} else if reply.Tasktype == MAP {
 		filename = reply.Filename
 	}
@@ -98,7 +85,7 @@ func (c *Coordinator) startTimer(args TaskArgs, reply TaskReply) {
 				c.MappingInputStatus[filename] = QUEUED
 				c.MLock.Unlock()
 			}
-			log.Printf("Worker %d failed to deliver in 10s\n",args.WorkerId)
+			// log.Printf("Worker %d failed to deliver in 10s\n",args.WorkerId)
 			return
 
 		default:
@@ -131,15 +118,14 @@ func (c *Coordinator) SubmitTask(args *SubmissionArgs, reply *SubmissionReply) e
 		file := args.Filename
 		
 		c.MappingInputStatus[file] = COMPLETED
-	}
-	else if args.Tasktype == REDUCE {
+	} else if args.Tasktype == REDUCE {
 		var pos int
 		fmt.Sscanf(args.Filename, "mr-int-%d", &pos)
 
 		c.ReduceTasksStatus[pos] = COMPLETED
 	}
 
-	log.Printf("Worker %d submitted results\n", args.WorkerId)
+	// log.Printf("Worker %d submitted results\n", args.WorkerId)
 	reply.Status = "Server Received the report!!"
 	
 	go c.checkStatus(args.Tasktype)
@@ -155,13 +141,12 @@ func (c *Coordinator) checkStatus(taskType TaskType) {
 
 	if taskType == MAP {
 		for _, value := range c.MappingInputStatus {
-			flag &= (value == COMPLETED)
+			flag = (flag && (value == COMPLETED))
 		}
 		c.IsMappingComplete = flag
-	}
-	else if taskType == REDUCE {
+	} else if taskType == REDUCE {
 		for _, value := range c.ReduceTasksStatus {
-			flag &= (value == COMPLETED)
+			flag = (flag && (value == COMPLETED))
 		}
 		c.IsReducingComplete = flag
 	}
