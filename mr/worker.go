@@ -47,7 +47,7 @@ func Worker(mapf func(string, string) []KeyValue,
 
 		}
 		else if reply.TaskType == "snooze" {
-			time.Sleep(2*time.Second)
+			time.Sleep(time.Second)
 		}
 		else{
 			break
@@ -90,7 +90,7 @@ func CallForTask() TaskReply {
 
 	if !err {
 		reply.TaskType = ""
-		fmt.Printf("Worker process: %v will exit\n",args.WorkerId)
+		log.Printf("Worker process: %v will exit\n", args.WorkerId)
 	}
 	return reply
 }
@@ -105,7 +105,7 @@ func CallForSubmit(taskReply TaskReply) {
 	err := call("Coordinator.SubmitTask", &args, &reply)
 
 	if !err {
-		fmt.Println("Error sending intermediate results to Coordinator")
+		log.Println("Error sending intermediate results to Coordinator")
 	}
 }
 //
