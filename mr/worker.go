@@ -96,9 +96,11 @@ func CallForTask() TaskReply {
 }
 
 func CallForSubmit(taskReply TaskReply) {
-	args := SubmissionArgs{}
-	args.Filename = taskReply.Filename
-	args.TaskType = taskReply.TaskType
+	args := SubmissionArgs {
+		args.WorkerId: os.Getpid(),
+		args.Filename: taskReply.Filename,
+		args.TaskType: taskReply.TaskType
+	}
 
 	reply := SubmissionReply{}
 

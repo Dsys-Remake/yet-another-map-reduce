@@ -126,6 +126,10 @@ func (c *Coordinator) startTimer(args TaskArgs, reply TaskReply) {
 	}
 }
 
+func (c *Coordinator) SubmitTask(args *SubmissionArgs, reply *SubmissionReply) error {
+	return nil
+}
+
 
 //
 // start a thread that listens for RPCs from worker.go

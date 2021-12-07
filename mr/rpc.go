@@ -33,6 +33,7 @@ type TaskReply struct {
 }
 
 type SubmissionArgs struct {
+	WorkerId int
 	TaskType string
 	Filename string
 }
