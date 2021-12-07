@@ -98,6 +98,7 @@ func (c *Coordinator) startTimer(args TaskArgs, reply TaskReply) {
 				c.MappingInputStatus[filename] = QUEUED
 				c.MLock.Unlock()
 			}
+			log.Printf("Worker %d failed to deliver in 10s\n",args.WorkerId)
 			return
 
 		default:
