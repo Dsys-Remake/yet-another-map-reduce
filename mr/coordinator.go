@@ -38,7 +38,34 @@ func (c *Coordinator) Example(args *ExampleArgs, reply *ExampleReply) error {
 	return nil
 }
 
-func 
+func (c *Coordinator) DemandTask(args *TaskArgs, reply *TaskReply) error {
+	reply.TaskType = "snooze"
+	log.Printf("Worker %d demanded task\n", args.WorkerId)
+
+	c.MLock.Lock()
+	defer c.MLock.Unlock()
+
+	if !c.IsMappingComplete {
+		for file, status := range c.MappingInputStatus {
+			if status == QUEUED {
+				reply.Filename = file
+				c.MappingInputStatus[file] = RUNNING
+				break
+			}
+		}
+	}
+	else if !c.IsReducingComplete {
+		for i, status := range c.ReduceTasksStatus {
+			if status == QUEUED {
+				fmt.Sprintf(reply.Filename, "mr-int-%d", i)
+				c.ReduceTasksStatus[i] = RUNNING
+				break
+			}
+		}
+	}
+
+	return nil
+}
 
 
 //
@@ -65,7 +92,10 @@ func (c *Coordinator) Done() bool {
 	ret := false
 
 	// Your code here.
+	c.MLock.Lock()
+	defer c.MLock.Unlock()
 
+	ret = c.IsReducingComplete
 
 	return ret
 }
