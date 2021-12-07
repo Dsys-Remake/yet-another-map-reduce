@@ -37,13 +37,13 @@ type TaskArgs struct {
 }
 
 type TaskReply struct {
-	TaskType TaskType
+	Tasktype TaskType
 	Filename string
 }
 
 type SubmissionArgs struct {
 	WorkerId int
-	TaskType TaskType
+	Tasktype TaskType
 	Filename string
 }
 

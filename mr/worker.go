@@ -40,11 +40,11 @@ func Worker(mapf func(string, string) []KeyValue,
 	for {
 		reply := CallForTask()
 
-		if reply.TaskType == MAP {
+		if reply.Tasktype == MAP {
 
-		} else if reply.TaskType == REDUCE {
+		} else if reply.Tasktype == REDUCE {
 
-		} else if reply.TaskType == SNOOZE {
+		} else if reply.Tasktype == SNOOZE {
 			time.Sleep(time.Second)
 		} else{
 			break
@@ -95,7 +95,7 @@ func CallForSubmit(taskReply TaskReply) {
 	args := SubmissionArgs{
 		WorkerId: os.Getpid(),
 		Filename: taskReply.Filename,
-		TaskType: taskReply.TaskType,
+		Tasktype: taskReply.Tasktype,
 	}
 
 	reply := SubmissionReply{}
