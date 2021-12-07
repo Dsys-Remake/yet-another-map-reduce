@@ -1,6 +1,6 @@
 module yetanothermapreduce
 
-go 1.17
+go 1.13
 
 //require (
 //	mr v1.0.0

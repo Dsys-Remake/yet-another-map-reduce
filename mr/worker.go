@@ -7,6 +7,7 @@ import (
 	"log"
 	"net/rpc"
 	"os"
+	"io/ioutil"
 	"sort"
 	"strconv"
 	"time"
@@ -43,7 +44,7 @@ func Worker(mapf func(string, string) []KeyValue,
 		reply := CallForTask()
 
 		if reply.Tasktype == MAP {
-			data, err := os.ReadFile(reply.Filename)
+			data, err := ioutil.ReadFile(reply.Filename)
 			if err != nil {
 				return
 			}
