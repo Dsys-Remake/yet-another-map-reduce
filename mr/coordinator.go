@@ -65,8 +65,64 @@ func (c *Coordinator) DemandTask(args *TaskArgs, reply *TaskReply) error {
 			}
 		}
 	}
+	if reply.TaskType != "snooze" {
+		go c.startTimer(*args, *reply)
+	}
 
 	return nil
+}
+
+func (c *Coordinator) startTimer(args TaskArgs, reply TaskReply) {
+	ticker := time.NewTicker(10*time.Second)
+	defer ticker.Stop()
+
+	var pos int
+	var filename string
+	if reply.TaskType == "reduce" {
+		fmt.Sscanf(reply.Filename, "mr-int-%d", &pos)
+	}
+	else if reply.TaskType == "map" {
+		filename = reply.Filename
+	}
+
+	for {
+		select {
+		case <-ticker.C:
+			if reply.TaskType == "reduce" {
+				c.MLock.Lock()
+				c.ReduceTasksStatus[pos] = QUEUED
+				c.MLock.Unlock()
+			}
+			else if reply.TaskType == "map" {
+				c.MLock.Lock()
+				c.MappingInputStatus[filename] = QUEUED
+				c.MLock.Unlock()
+			}
+			return
+
+		default:
+			if reply.TaskType == "reduce" {
+				c.MLock.Lock()
+				if c.ReduceTasksStatus[pos] == COMPLETED {
+					c.MLock.Unlock()
+					return 
+				}
+				else {
+					c.MLock.Unlock()
+				}
+			}
+			else if reply.TaskType == "map" {
+				c.MLock.Lock()
+				if c.MappingInputStatus[filename] == COMPLETED {
+					c.MLock.Unlock()
+					return 
+				}
+				else {
+					c.MLock.Unlock()
+				}
+			}
+		}
+	}
 }
 
 
