@@ -49,6 +49,7 @@ func (c *Coordinator) DemandTask(args *TaskArgs, reply *TaskReply) error {
 		for file, status := range c.MappingInputStatus {
 			if status == QUEUED {
 				reply.Filename = file
+				reply.TaskType = "map"
 				c.MappingInputStatus[file] = RUNNING
 				break
 			}
@@ -58,6 +59,7 @@ func (c *Coordinator) DemandTask(args *TaskArgs, reply *TaskReply) error {
 		for i, status := range c.ReduceTasksStatus {
 			if status == QUEUED {
 				fmt.Sprintf(reply.Filename, "mr-int-%d", i)
+				reply.TaskType = "reduce"
 				c.ReduceTasksStatus[i] = RUNNING
 				break
 			}
