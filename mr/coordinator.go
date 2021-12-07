@@ -42,7 +42,7 @@ func (c *Coordinator) Example(args *ExampleArgs, reply *ExampleReply) error {
 
 func (c *Coordinator) DemandTask(args *TaskArgs, reply *TaskReply) error {
 	log.Printf("Worker %d demanded task\n", args.WorkerId)
-	reply.TaskType = SNOOZE
+	reply.Tasktype = SNOOZE
 
 	c.MLock.Lock()
 	defer c.MLock.Unlock()
@@ -51,7 +51,7 @@ func (c *Coordinator) DemandTask(args *TaskArgs, reply *TaskReply) error {
 		for file, status := range c.MappingInputStatus {
 			if status == QUEUED {
 				reply.Filename = file
-				reply.TaskType = MAP
+				reply.Tasktype = MAP
 				c.MappingInputStatus[file] = RUNNING
 				break
 			}
@@ -60,14 +60,14 @@ func (c *Coordinator) DemandTask(args *TaskArgs, reply *TaskReply) error {
 		for i, status := range c.ReduceTasksStatus {
 			if status == QUEUED {
 				fmt.Sprintf(reply.Filename, "mr-int-%d", i)
-				reply.TaskType = REDUCE
+				reply.Tasktype = REDUCE
 				c.ReduceTasksStatus[i] = RUNNING
 				break
 			}
 		}
 	} 
-	
-	if reply.TaskType != SNOOZE {
+
+	if reply.Tasktype != SNOOZE {
 		go c.startTimer(*args, *reply)
 	}
 
@@ -80,20 +80,20 @@ func (c *Coordinator) startTimer(args TaskArgs, reply TaskReply) {
 
 	var pos int
 	var filename string
-	if reply.TaskType == REDUCE {
+	if reply.Tasktype == REDUCE {
 		fmt.Sscanf(reply.Filename, "mr-int-%d", &pos)
-	} else if reply.TaskType == MAP {
+	} else if reply.Tasktype == MAP {
 		filename = reply.Filename
 	}
 
 	for {
 		select {
 		case <-ticker.C:
-			if reply.TaskType == REDUCE  {
+			if reply.Tasktype == REDUCE  {
 				c.MLock.Lock()
 				c.ReduceTasksStatus[pos] = QUEUED
 				c.MLock.Unlock()
-			} else if reply.TaskType == MAP {
+			} else if reply.Tasktype == MAP {
 				c.MLock.Lock()
 				c.MappingInputStatus[filename] = QUEUED
 				c.MLock.Unlock()
@@ -102,7 +102,7 @@ func (c *Coordinator) startTimer(args TaskArgs, reply TaskReply) {
 			return
 
 		default:
-			if reply.TaskType == REDUCE {
+			if reply.Tasktype == REDUCE {
 				c.MLock.Lock()
 				if c.ReduceTasksStatus[pos] == COMPLETED {
 					c.MLock.Unlock()
@@ -110,7 +110,7 @@ func (c *Coordinator) startTimer(args TaskArgs, reply TaskReply) {
 				} else {
 					c.MLock.Unlock()
 				}
-			} else if reply.TaskType == MAP {
+			} else if reply.Tasktype == MAP {
 				c.MLock.Lock()
 				if c.MappingInputStatus[filename] == COMPLETED {
 					c.MLock.Unlock()
@@ -124,7 +124,47 @@ func (c *Coordinator) startTimer(args TaskArgs, reply TaskReply) {
 }
 
 func (c *Coordinator) SubmitTask(args *SubmissionArgs, reply *SubmissionReply) error {
+	c.MLock.Lock()
+	defer c.MLock.Unlock()
+
+	if args.Tasktype == MAP {
+		file := args.Filename
+		
+		c.MappingInputStatus[file] = COMPLETED
+	}
+	else if args.Tasktype == REDUCE {
+		var pos int
+		fmt.Sscanf(args.Filename, "mr-int-%d", &pos)
+
+		c.ReduceTasksStatus[pos] = COMPLETED
+	}
+
+	log.Printf("Worker %d submitted results\n", args.WorkerId)
+	reply.Status = "Server Received the report!!"
+	
+	go c.checkStatus(args.Tasktype)
+
 	return nil
+}
+
+func (c *Coordinator) checkStatus(taskType TaskType) {
+	flag := true
+
+	c.MLock.Lock()
+	defer c.MLock.Unlock()
+
+	if taskType == MAP {
+		for _, value := range c.MappingInputStatus {
+			flag &= (value == COMPLETED)
+		}
+		c.IsMappingComplete = flag
+	}
+	else if taskType == REDUCE {
+		for _, value := range c.ReduceTasksStatus {
+			flag &= (value == COMPLETED)
+		}
+		c.IsReducingComplete = flag
+	}
 }
 
 
