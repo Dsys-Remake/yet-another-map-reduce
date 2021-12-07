@@ -22,19 +22,28 @@ type ExampleReply struct {
 	Y int
 }
 
+
+type TaskType int
+
+const (
+	MAP TaskType = iota
+	REDUCE
+	SNOOZE
+)
+
 // Add your RPC definitions here.
 type TaskArgs struct {
 	WorkerId int
 }
 
 type TaskReply struct {
-	TaskType string
+	TaskType TaskType
 	Filename string
 }
 
 type SubmissionArgs struct {
 	WorkerId int
-	TaskType string
+	TaskType TaskType
 	Filename string
 }
 

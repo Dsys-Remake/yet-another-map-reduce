@@ -40,16 +40,13 @@ func Worker(mapf func(string, string) []KeyValue,
 	for {
 		reply := CallForTask()
 
-		if reply.TaskType == "map" {
+		if reply.TaskType == MAP {
 
-		}
-		else if reply.TaskType == "reduce" {
+		} else if reply.TaskType == REDUCE {
 
-		}
-		else if reply.TaskType == "snooze" {
+		} else if reply.TaskType == SNOOZE {
 			time.Sleep(time.Second)
-		}
-		else{
+		} else{
 			break
 		}
 	}
@@ -89,17 +86,16 @@ func CallForTask() TaskReply {
 	err := call("Coordinator.DemandTask", &args, &reply)
 
 	if !err {
-		reply.TaskType = ""
 		log.Printf("Worker process: %v will exit\n", args.WorkerId)
 	}
 	return reply
 }
 
 func CallForSubmit(taskReply TaskReply) {
-	args := SubmissionArgs {
-		args.WorkerId: os.Getpid(),
-		args.Filename: taskReply.Filename,
-		args.TaskType: taskReply.TaskType
+	args := SubmissionArgs{
+		WorkerId: os.Getpid(),
+		Filename: taskReply.Filename,
+		TaskType: taskReply.TaskType,
 	}
 
 	reply := SubmissionReply{}

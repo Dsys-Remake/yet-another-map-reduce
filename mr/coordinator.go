@@ -6,6 +6,8 @@ import "os"
 import "net/rpc"
 import "net/http"
 import "sync"
+import "fmt"
+import "time"
 
 type workerStatus int
 
@@ -39,7 +41,6 @@ func (c *Coordinator) Example(args *ExampleArgs, reply *ExampleReply) error {
 }
 
 func (c *Coordinator) DemandTask(args *TaskArgs, reply *TaskReply) error {
-	reply.TaskType = "snooze"
 	log.Printf("Worker %d demanded task\n", args.WorkerId)
 
 	c.MLock.Lock()
@@ -49,23 +50,24 @@ func (c *Coordinator) DemandTask(args *TaskArgs, reply *TaskReply) error {
 		for file, status := range c.MappingInputStatus {
 			if status == QUEUED {
 				reply.Filename = file
-				reply.TaskType = "map"
+				reply.TaskType = MAP
 				c.MappingInputStatus[file] = RUNNING
 				break
 			}
 		}
-	}
-	else if !c.IsReducingComplete {
+	} else if !c.IsReducingComplete {
 		for i, status := range c.ReduceTasksStatus {
 			if status == QUEUED {
 				fmt.Sprintf(reply.Filename, "mr-int-%d", i)
-				reply.TaskType = "reduce"
+				reply.TaskType = REDUCE
 				c.ReduceTasksStatus[i] = RUNNING
 				break
 			}
 		}
+	} else {
+		reply.TaskType = SNOOZE
 	}
-	if reply.TaskType != "snooze" {
+	if reply.TaskType != SNOOZE {
 		go c.startTimer(*args, *reply)
 	}
 
@@ -78,22 +80,20 @@ func (c *Coordinator) startTimer(args TaskArgs, reply TaskReply) {
 
 	var pos int
 	var filename string
-	if reply.TaskType == "reduce" {
+	if reply.TaskType == REDUCE {
 		fmt.Sscanf(reply.Filename, "mr-int-%d", &pos)
-	}
-	else if reply.TaskType == "map" {
+	} else if reply.TaskType == MAP {
 		filename = reply.Filename
 	}
 
 	for {
 		select {
 		case <-ticker.C:
-			if reply.TaskType == "reduce" {
+			if reply.TaskType == REDUCE  {
 				c.MLock.Lock()
 				c.ReduceTasksStatus[pos] = QUEUED
 				c.MLock.Unlock()
-			}
-			else if reply.TaskType == "map" {
+			} else if reply.TaskType == MAP {
 				c.MLock.Lock()
 				c.MappingInputStatus[filename] = QUEUED
 				c.MLock.Unlock()
@@ -102,23 +102,20 @@ func (c *Coordinator) startTimer(args TaskArgs, reply TaskReply) {
 			return
 
 		default:
-			if reply.TaskType == "reduce" {
+			if reply.TaskType == REDUCE {
 				c.MLock.Lock()
 				if c.ReduceTasksStatus[pos] == COMPLETED {
 					c.MLock.Unlock()
 					return 
-				}
-				else {
+				} else {
 					c.MLock.Unlock()
 				}
-			}
-			else if reply.TaskType == "map" {
+			} else if reply.TaskType == MAP {
 				c.MLock.Lock()
 				if c.MappingInputStatus[filename] == COMPLETED {
 					c.MLock.Unlock()
 					return 
-				}
-				else {
+				} else {
 					c.MLock.Unlock()
 				}
 			}
