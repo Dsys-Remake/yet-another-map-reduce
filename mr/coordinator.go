@@ -42,6 +42,7 @@ func (c *Coordinator) Example(args *ExampleArgs, reply *ExampleReply) error {
 
 func (c *Coordinator) DemandTask(args *TaskArgs, reply *TaskReply) error {
 	log.Printf("Worker %d demanded task\n", args.WorkerId)
+	reply.TaskType = SNOOZE
 
 	c.MLock.Lock()
 	defer c.MLock.Unlock()
@@ -64,9 +65,8 @@ func (c *Coordinator) DemandTask(args *TaskArgs, reply *TaskReply) error {
 				break
 			}
 		}
-	} else {
-		reply.TaskType = SNOOZE
-	}
+	} 
+	
 	if reply.TaskType != SNOOZE {
 		go c.startTimer(*args, *reply)
 	}
