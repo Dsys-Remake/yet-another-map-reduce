@@ -18,10 +18,10 @@ const (
 type Coordinator struct {
 	// Your definitions here.
 	InputFilesLocation []string
-	MappingInputStatus map[string]int
+	MappingInputStatus map[string]workerStatus
 	IsMappingComplete bool
 	NumOfReduceTasks int
-	ReduceTasksStatus []int
+	ReduceTasksStatus []workerStatus
 	IsReducingComplete bool
 	MLock sync.Mutex
 }
@@ -164,22 +164,23 @@ func (c *Coordinator) Done() bool {
 // nReduce is the number of reduce tasks to use.
 //
 func MakeCoordinator(files []string, nReduce int) *Coordinator {
-	c := Coordinator{}
+	c := Coordinator{
+		InputFilesLocation: files,
+		MappingInputStatus: make(map[string]workerStatus),
+		IsMappingComplete: false,
+		NumOfReduceTasks: nReduce,
+		ReduceTasksStatus: make([]workerStatus, nReduce),
+		IsReducingComplete: false,
+	}
 
 	// Your code here.
 
 	// Initialising the coordinator
-	c.IsReducingComplete = false
-	c.NumOfReduceTasks = nReduce
-	c.ReduceTasksStatus = make([]int, nReduce)
-	for i := 0; i < nReduce; ++i {
-		c.ReduceTasksStatus[i] = QUEUED
+	for index, _ := range c.ReduceTasksStatus {
+		c.ReduceTasksStatus[index] = QUEUED
 	}
 
-	c.IsMappingComplete = false
-	c.MappingInputStatus = make(map[string]int)
 	for _, file := range files {
-		c.InputFilesLocation = append(c.InputFilesLocation, file)
 		c.MappingInputStatus[file] = QUEUED
 	}
 
