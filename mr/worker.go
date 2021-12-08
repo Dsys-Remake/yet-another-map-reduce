@@ -21,6 +21,14 @@ type KeyValue struct {
 	Value string
 }
 
+// for sorting by key.
+type ByKey []KeyValue
+
+// for sorting by key.
+func (a ByKey) Len() int           { return len(a) }
+func (a ByKey) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
+func (a ByKey) Less(i, j int) bool { return a[i].Key < a[j].Key }
+
 //
 // use ihash(key) % NReduce to choose the reduce
 // task number for each KeyValue emitted by Map.
@@ -44,6 +52,7 @@ func Worker(mapf func(string, string) []KeyValue,
 		reply := CallForTask()
 
 		if reply.Tasktype == MAP {
+
 			data, err := ioutil.ReadFile(reply.Filename)
 			if err != nil {
 				return
@@ -52,13 +61,14 @@ func Worker(mapf func(string, string) []KeyValue,
 			kv := mapf(reply.Filename, string(data))
 			storeKeyValuesToTempFile(kv, reply.ReduceWorkers)
 			CallForSubmit(reply)
-			// Call the map function 
+			
 		} else if reply.Tasktype == REDUCE {
+
 			kv := getSortedKeyValuesFromTempFile(reply.Filename)
-			kvMap := removeDuplicateKeys(kv)
-			runReduceAndStore(reducef, kvMap, outputFileName(reply.Filename))
+			runReduceAndStore(reducef, kv, outputFileName(reply.Filename))
 			os.Remove(reply.Filename)
 			CallForSubmit(reply)
+			
 		} else if reply.Tasktype == SNOOZE {
 			time.Sleep(time.Second)
 		} else{
@@ -77,15 +87,29 @@ func outputFileName(tempFileName string) string {
 	// log.Printf("%d %s",pos, tempFileName)
 	return outputFilePrefix + strconv.Itoa(pos)
 }
-func runReduceAndStore(reducef func(string, []string) string, kvMap map[string][]string, outFile string) {
+func runReduceAndStore(reducef func(string, []string) string, intermediate []KeyValue, outFile string) {
 	file, err := os.OpenFile(outFile, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
 	if err  != nil {
 		return
 	}
 	defer file.Close()
-	for k, v := range kvMap {
-		output := reducef(k, v)
-		fmt.Fprintf(file, "%v %v\n", k, output)
+	
+	i := 0
+	for i < len(intermediate) {
+		j := i + 1
+		for j < len(intermediate) && intermediate[j].Key == intermediate[i].Key {
+			j++
+		}
+		values := []string{}
+		for k := i; k < j; k++ {
+			values = append(values, intermediate[k].Value)
+		}
+		output := reducef(intermediate[i].Key, values)
+
+		// this is the correct format for each line of Reduce output.
+		fmt.Fprintf(file, "%v %v\n", intermediate[i].Key, output)
+
+		i = j
 	}
 }
 func getSortedKeyValuesFromTempFile(fileName string) []KeyValue {
@@ -102,21 +126,9 @@ func getSortedKeyValuesFromTempFile(fileName string) []KeyValue {
 		list = append(list, KeyValue{Key: key, Value: value})
 	}
 
-	sort.Slice(list, func(i, j int) bool {
-		return list[i].Key < list[j].Key
-	})
+	sort.Sort(ByKey(list))
 
 	return list
-}
-
-func removeDuplicateKeys(kv []KeyValue) map[string][]string {
-	res := make(map[string][]string)
-
-	for _, item := range kv {
-		res[item.Key] = append(res[item.Key], item.Value)
-	} 
-
-	return res
 }
 
 func storeKeyValuesToTempFile(kv []KeyValue, nReduce int) {
