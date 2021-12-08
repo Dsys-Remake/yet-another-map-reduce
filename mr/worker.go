@@ -62,7 +62,7 @@ func Worker(mapf func(string, string) []KeyValue,
 			CallForSubmit(reply)
 
 		} else if reply.Tasktype == SNOOZE {
-			time.Sleep(500*time.Millisecond)
+			time.Sleep(200*time.Millisecond)
 		} else{
 			break
 		}
