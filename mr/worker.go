@@ -21,14 +21,6 @@ type KeyValue struct {
 	Value string
 }
 
-// for sorting by key.
-type ByKey []KeyValue
-
-// for sorting by key.
-func (a ByKey) Len() int           { return len(a) }
-func (a ByKey) Swap(i, j int)      { a[i], a[j] = a[j], a[i] }
-func (a ByKey) Less(i, j int) bool { return a[i].Key < a[j].Key }
-
 //
 // use ihash(key) % NReduce to choose the reduce
 // task number for each KeyValue emitted by Map.
@@ -68,9 +60,9 @@ func Worker(mapf func(string, string) []KeyValue,
 			runReduceAndStore(reducef, kv, outputFileName(reply.Filename))
 			os.Remove(reply.Filename)
 			CallForSubmit(reply)
-			
+
 		} else if reply.Tasktype == SNOOZE {
-			time.Sleep(time.Second)
+			time.Sleep(500*time.Millisecond)
 		} else{
 			break
 		}
@@ -126,7 +118,9 @@ func getSortedKeyValuesFromTempFile(fileName string) []KeyValue {
 		list = append(list, KeyValue{Key: key, Value: value})
 	}
 
-	sort.Sort(ByKey(list))
+	sort.Slice(list, func (i, j int) bool{
+		return list[i].Key < list[j].Key
+	})
 
 	return list
 }
