@@ -85,7 +85,7 @@ func runReduceAndStore(reducef func(string, []string) string, kvMap map[string][
 	defer file.Close()
 	for k, v := range kvMap {
 		output := reducef(k, v)
-		fmt.Fprintf(file, "%s\n", output)
+		fmt.Fprintf(file, "%v %v\n", k, output)
 	}
 }
 func getSortedKeyValuesFromTempFile(fileName string) []KeyValue {
