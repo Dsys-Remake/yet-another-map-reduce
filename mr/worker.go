@@ -4,7 +4,6 @@ import (
 	"bufio"
 	"fmt"
 	"hash/fnv"
-	"log"
 	"net/rpc"
 	"os"
 	"io/ioutil"
@@ -51,16 +50,19 @@ func Worker(mapf func(string, string) []KeyValue,
 			}
 		
 			kv := mapf(reply.Filename, string(data))
-			storeKeyValuesToTempFile(kv, reply.ReduceWorkers)
-			CallForSubmit(reply)
-			
+			res := CallForSubmit(reply)
+			if  res.Status == CONTINUE {
+				storeKeyValuesToTempFile(kv, reply.ReduceWorkers)				
+			}
 		} else if reply.Tasktype == REDUCE {
 
 			kv := getSortedKeyValuesFromTempFile(reply.Filename)
-			runReduceAndStore(reducef, kv, outputFileName(reply.Filename))
-			os.Remove(reply.Filename)
-			CallForSubmit(reply)
-
+			kv = collectUniqueAndRunReduce(reducef, kv)
+			res := CallForSubmit(reply)
+			if res.Status == CONTINUE {
+				StoreReduceOutput(kv, outputFileName(reply.Filename))
+				os.Remove(reply.Filename)
+			}
 		} else if reply.Tasktype == SNOOZE {
 			time.Sleep(200*time.Millisecond)
 		} else{
@@ -79,13 +81,8 @@ func outputFileName(tempFileName string) string {
 	// log.Printf("%d %s",pos, tempFileName)
 	return outputFilePrefix + strconv.Itoa(pos)
 }
-func runReduceAndStore(reducef func(string, []string) string, intermediate []KeyValue, outFile string) {
-	file, err := os.OpenFile(outFile, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
-	if err  != nil {
-		return
-	}
-	defer file.Close()
-	
+func collectUniqueAndRunReduce(reducef func(string, []string) string, intermediate []KeyValue) []KeyValue {
+	res := []KeyValue{}
 	i := 0
 	for i < len(intermediate) {
 		j := i + 1
@@ -98,12 +95,29 @@ func runReduceAndStore(reducef func(string, []string) string, intermediate []Key
 		}
 		output := reducef(intermediate[i].Key, values)
 
-		// this is the correct format for each line of Reduce output.
-		fmt.Fprintf(file, "%v %v\n", intermediate[i].Key, output)
+		res = append(res, KeyValue{Key: intermediate[i].Key, Value: output})
 
 		i = j
 	}
+
+	return res
 }
+
+func StoreReduceOutput(kv []KeyValue,  outFile string) error {
+	file, err := os.OpenFile(outFile, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	for _, item := range kv {
+		// this is the correct format for each line of Reduce output.
+		fmt.Fprintf(file, "%v %v\n", item.Key, item.Value)
+	}
+
+	return nil
+}
+
 func getSortedKeyValuesFromTempFile(fileName string) []KeyValue {
 	f, err := os.Open(fileName)
 	if err != nil {
@@ -165,7 +179,7 @@ func CallForTask() TaskReply {
 	return reply
 }
 
-func CallForSubmit(taskReply TaskReply) {
+func CallForSubmit(taskReply TaskReply) SubmissionReply {
 	args := SubmissionArgs{
 		WorkerId: os.Getpid(),
 		Filename: taskReply.Filename,
@@ -178,7 +192,10 @@ func CallForSubmit(taskReply TaskReply) {
 
 	if !err {
 		// log.Println("Error sending intermediate results to Coordinator")
+		return SubmissionReply{Status: ABORT}
 	}
+
+	return reply
 }
 //
 // send an RPC request to the coordinator, wait for the response.
@@ -190,7 +207,7 @@ func call(rpcname string, args interface{}, reply interface{}) bool {
 	sockname := coordinatorSock()
 	c, err := rpc.DialHTTP("unix", sockname)
 	if err != nil {
-		log.Fatal("dialing:", err)
+		os.Exit(1)
 	}
 	defer c.Close()
 

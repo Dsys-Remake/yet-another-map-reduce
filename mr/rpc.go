@@ -28,7 +28,7 @@ type SubmissionArgs struct {
 }
 
 type SubmissionReply struct {
-	Status string
+	Status SubmissionReplyStatus
 }
 
 // Cook up a unique-ish UNIX-domain socket name

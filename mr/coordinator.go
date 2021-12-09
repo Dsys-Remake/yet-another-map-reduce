@@ -113,20 +113,23 @@ func (c *Coordinator) startTimer(args TaskArgs, reply TaskReply) {
 func (c *Coordinator) SubmitTask(args *SubmissionArgs, reply *SubmissionReply) error {
 	c.MLock.Lock()
 	defer c.MLock.Unlock()
+	file := args.Filename
 
-	if args.Tasktype == MAP {
-		file := args.Filename
+	reply.Status = ABORT
+	if args.Tasktype == MAP && c.MappingInputStatus[file] == RUNNING {
 		
 		c.MappingInputStatus[file] = COMPLETED
+		reply.Status = CONTINUE
 	} else if args.Tasktype == REDUCE {
 		var pos int
 		fmt.Sscanf(args.Filename, intermediateFilePrefix + "%d", &pos)
-
-		c.ReduceTasksStatus[pos] = COMPLETED
+		if c.ReduceTasksStatus[pos] == RUNNING {
+			c.ReduceTasksStatus[pos] = COMPLETED
+			reply.Status = CONTINUE
+		}
 	}
 
 	// log.Printf("Worker %d submitted results\n", args.WorkerId)
-	reply.Status = "Server Received the report!!"
 	
 	go c.checkStatus(args.Tasktype)
 
