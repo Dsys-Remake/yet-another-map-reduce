@@ -17,14 +17,14 @@ type TaskArgs struct {
 
 type TaskReply struct {
 	Tasktype TaskType
-	Filename string
+	Files []string
 	ReduceWorkers int
 }
 
 type SubmissionArgs struct {
 	WorkerId int
 	Tasktype TaskType
-	Filename string
+	Files []string
 }
 
 type SubmissionReply struct {

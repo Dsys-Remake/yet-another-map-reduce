@@ -44,25 +44,24 @@ func Worker(mapf func(string, string) []KeyValue,
 
 		if reply.Tasktype == MAP {
 
-			data, err := ioutil.ReadFile(reply.Filename)
+			data, err := ioutil.ReadFile(reply.Files[0])
 			if err != nil {
 				return
 			}
 		
-			kv := mapf(reply.Filename, string(data))
-			res := CallForSubmit(reply)
-			if  res.Status == CONTINUE {
-				storeKeyValuesToTempFile(kv, reply.ReduceWorkers)				
-			}
+			kv := mapf(reply.Files[0], string(data))
+			filenames := storeKeyValuesToTempFile(kv, reply.ReduceWorkers)
+			CallForSubmit(filenames, MAP)
+			
 		} else if reply.Tasktype == REDUCE {
 
-			kv := getSortedKeyValuesFromTempFile(reply.Filename)
+			kv := getSortedKeyValues(reply.Files)
 			kv = collectUniqueAndRunReduce(reducef, kv)
-			res := CallForSubmit(reply)
-			if res.Status == CONTINUE {
-				StoreReduceOutput(kv, outputFileName(reply.Filename))
-				os.Remove(reply.Filename)
-			}
+			filename := outputFilePrefix + strconv.Itoa(reply.ReduceWorkers)
+			StoreReduceOutput(kv, filename)
+			filenames := []string{filename}
+			CallForSubmit(filenames, REDUCE)
+
 		} else if reply.Tasktype == SNOOZE {
 			time.Sleep(200*time.Millisecond)
 		} else{
@@ -104,17 +103,18 @@ func collectUniqueAndRunReduce(reducef func(string, []string) string, intermedia
 }
 
 func StoreReduceOutput(kv []KeyValue,  outFile string) error {
-	file, err := os.OpenFile(outFile, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
+	file, err := ioutil.TempFile("", outFile)
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer os.Rename(file.Name(), outFile)
 
 	for _, item := range kv {
 		// this is the correct format for each line of Reduce output.
 		fmt.Fprintf(file, "%v %v\n", item.Key, item.Value)
 	}
 
+	file.Close()
 	return nil
 }
 
@@ -132,6 +132,17 @@ func getSortedKeyValuesFromTempFile(fileName string) []KeyValue {
 		list = append(list, KeyValue{Key: key, Value: value})
 	}
 
+	
+
+	return list
+}
+
+func getSortedKeyValues(filenames []string) []KeyValue {
+	list := []KeyValue{}
+	for _, file := range filenames {
+		kva := getSortedKeyValuesFromTempFile(file)
+		list = append(list, kva...)
+	}
 	sort.Slice(list, func (i, j int) bool{
 		return list[i].Key < list[j].Key
 	})
@@ -154,7 +165,7 @@ func storeKeyValuesToTempFile(kv []KeyValue, nReduce int) {
 
 		tmpFileName := intermediateFilePrefix + strconv.Itoa(i)
 	
-		file, err := os.OpenFile(tmpFileName, os.O_RDWR|os.O_APPEND|os.O_CREATE, 0660)
+		file, err := ioutil.TempFile("",tmpFileName)
 		if err != nil {
 			continue
 		}
@@ -179,11 +190,11 @@ func CallForTask() TaskReply {
 	return reply
 }
 
-func CallForSubmit(taskReply TaskReply) SubmissionReply {
+func CallForSubmit(files []string, taskType TaskType) SubmissionReply {
 	args := SubmissionArgs{
 		WorkerId: os.Getpid(),
-		Filename: taskReply.Filename,
-		Tasktype: taskReply.Tasktype,
+		Files: files,
+		Tasktype: taskType
 	}
 
 	reply := SubmissionReply{}
