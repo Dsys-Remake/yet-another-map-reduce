@@ -46,8 +46,8 @@ func (c *Coordinator) DemandTask(args *TaskArgs, reply *TaskReply) error {
 		for i, status := range c.ReduceTasksStatus {
 			if status == QUEUED {
 				reply.Files = []string{}
-				for k, _ := range IntermediateFileLoc {
-					filename := IntermediateFileLoc[k][i]
+				for k, _ := range c.IntermediateFileLoc {
+					filename := c.IntermediateFileLoc[k][i]
 					reply.Files = append(reply.Files, filename)
 				}
 				reply.Tasktype = REDUCE
@@ -120,7 +120,7 @@ func (c *Coordinator) SubmitTask(args *SubmissionArgs, reply *SubmissionReply) e
 	files := args.Files
 
 	reply.Status = FAILED
-	if args.Tasktype == MAP && c.MappingInputStatus[file] == RUNNING {
+	if args.Tasktype == MAP && c.MappingInputStatus[files[0]] == RUNNING {
 		
 		c.MappingInputStatus[files[0]] = COMPLETED
 		c.IntermediateFileLoc[files[0]] = files[1:]

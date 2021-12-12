@@ -196,7 +196,7 @@ func CallForSubmit(files []string, taskType TaskType) SubmissionReply {
 	args := SubmissionArgs{
 		WorkerId: os.Getpid(),
 		Files: files,
-		Tasktype: taskType
+		Tasktype: taskType,
 	}
 
 	reply := SubmissionReply{}
@@ -205,7 +205,7 @@ func CallForSubmit(files []string, taskType TaskType) SubmissionReply {
 
 	if !err {
 		// log.Println("Error sending intermediate results to Coordinator")
-		return SubmissionReply{Status: ABORT}
+		return SubmissionReply{Status: FAILED}
 	}
 
 	return reply
