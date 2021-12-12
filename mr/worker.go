@@ -43,7 +43,9 @@ func Worker(mapf func(string, string) []KeyValue,
 		reply := CallForTask()
 
 		if reply.Tasktype == MAP {
-
+			if len(reply.Files) < 1 {
+				return
+			}
 			data, err := ioutil.ReadFile(reply.Files[0])
 			if err != nil {
 				return
@@ -105,7 +107,7 @@ func collectUniqueAndRunReduce(reducef func(string, []string) string, intermedia
 }
 
 func StoreReduceOutput(kv []KeyValue,  outFile string) error {
-	file, err := ioutil.TempFile("", outFile)
+	file, err := ioutil.TempFile("./", outFile)
 	if err != nil {
 		return err
 	}
@@ -165,7 +167,7 @@ func storeKeyValuesToTempFile(kv []KeyValue, nReduce int) []string {
 
 		tmpFileName := intermediateFilePrefix + strconv.Itoa(i)
 
-		file, err := ioutil.TempFile("",tmpFileName)
+		file, err := ioutil.TempFile("./",tmpFileName)
 		if err != nil {
 			continue
 		}
