@@ -50,7 +50,9 @@ func Worker(mapf func(string, string) []KeyValue,
 			}
 		
 			kv := mapf(reply.Files[0], string(data))
-			filenames := storeKeyValuesToTempFile(kv, reply.ReduceWorkers)
+			filenames := []string{reply.Files[0]}
+			files := storeKeyValuesToTempFile(kv, reply.ReduceWorkers)
+			filenames = append(filenames, files...)
 			CallForSubmit(filenames, MAP)
 			
 		} else if reply.Tasktype == REDUCE {
@@ -132,8 +134,6 @@ func getSortedKeyValuesFromTempFile(fileName string) []KeyValue {
 		list = append(list, KeyValue{Key: key, Value: value})
 	}
 
-	
-
 	return list
 }
 
@@ -150,21 +150,21 @@ func getSortedKeyValues(filenames []string) []KeyValue {
 	return list
 }
 
-func storeKeyValuesToTempFile(kv []KeyValue, nReduce int) {
+func storeKeyValuesToTempFile(kv []KeyValue, nReduce int) []string {
 	
 	separatedData := make([][]KeyValue, nReduce)
 	for _, item := range kv {
 		index := ihash(item.Key) % nReduce
 		separatedData[index] = append(separatedData[index], item)
 	}
-
+	filenames := []string{}
 	for i, data := range separatedData {
 		if len(data) == 0 {
 			continue
 		}
 
 		tmpFileName := intermediateFilePrefix + strconv.Itoa(i)
-	
+
 		file, err := ioutil.TempFile("",tmpFileName)
 		if err != nil {
 			continue
@@ -173,8 +173,10 @@ func storeKeyValuesToTempFile(kv []KeyValue, nReduce int) {
 		for _, item := range data {
 			fmt.Fprintf(file, "%s %s\n", item.Key, item.Value)
 		}
+		filenames = append(filenames, file.Name())
 
 	}
+	return filenames
 }
 
 

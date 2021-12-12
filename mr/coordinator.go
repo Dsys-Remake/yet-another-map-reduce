@@ -14,6 +14,7 @@ type Coordinator struct {
 	// Your definitions here.
 	InputFilesLocation []string
 	MappingInputStatus map[string]workerStatus
+	IntermediateFileLoc map[string][]string
 	IsMappingComplete bool
 	NumOfReduceTasks int
 	ReduceTasksStatus []workerStatus
@@ -34,7 +35,7 @@ func (c *Coordinator) DemandTask(args *TaskArgs, reply *TaskReply) error {
 	if !c.IsMappingComplete {
 		for file, status := range c.MappingInputStatus {
 			if status == QUEUED {
-				reply.Filename = file
+				reply.Files = []string{file}
 				reply.Tasktype = MAP
 				reply.ReduceWorkers = c.NumOfReduceTasks
 				c.MappingInputStatus[file] = RUNNING
@@ -44,10 +45,13 @@ func (c *Coordinator) DemandTask(args *TaskArgs, reply *TaskReply) error {
 	} else if !c.IsReducingComplete {
 		for i, status := range c.ReduceTasksStatus {
 			if status == QUEUED {
-				formatString := intermediateFilePrefix + "%d"
-				reply.Filename = fmt.Sprintf(formatString , i)
+				reply.Files = []string{}
+				for k, _ := range IntermediateFileLoc {
+					filename := IntermediateFileLoc[k][i]
+					reply.Files = append(reply.Files, filename)
+				}
 				reply.Tasktype = REDUCE
-				reply.ReduceWorkers = c.NumOfReduceTasks
+				reply.ReduceWorkers = i
 				c.ReduceTasksStatus[i] = RUNNING
 				break
 			}
@@ -68,9 +72,9 @@ func (c *Coordinator) startTimer(args TaskArgs, reply TaskReply) {
 	var pos int
 	var filename string
 	if reply.Tasktype == REDUCE {
-		fmt.Sscanf(reply.Filename, intermediateFilePrefix + "%d", &pos)
+		pos = reply.ReduceWorkers
 	} else if reply.Tasktype == MAP {
-		filename = reply.Filename
+		filename = reply.Files[0]
 	}
 
 	for {
@@ -113,19 +117,20 @@ func (c *Coordinator) startTimer(args TaskArgs, reply TaskReply) {
 func (c *Coordinator) SubmitTask(args *SubmissionArgs, reply *SubmissionReply) error {
 	c.MLock.Lock()
 	defer c.MLock.Unlock()
-	file := args.Filename
+	files := args.Files
 
-	reply.Status = ABORT
+	reply.Status = FAILED
 	if args.Tasktype == MAP && c.MappingInputStatus[file] == RUNNING {
 		
-		c.MappingInputStatus[file] = COMPLETED
-		reply.Status = CONTINUE
+		c.MappingInputStatus[files[0]] = COMPLETED
+		c.IntermediateFileLoc[files[0]] = files[1:]
+		reply.Status = DONE
 	} else if args.Tasktype == REDUCE {
 		var pos int
-		fmt.Sscanf(args.Filename, intermediateFilePrefix + "%d", &pos)
+		fmt.Sscanf(files[0], outputFilePrefix + "%d", &pos)
 		if c.ReduceTasksStatus[pos] == RUNNING {
 			c.ReduceTasksStatus[pos] = COMPLETED
-			reply.Status = CONTINUE
+			reply.Status = DONE
 		}
 	}
 
@@ -197,6 +202,7 @@ func MakeCoordinator(files []string, nReduce int) *Coordinator {
 	c := Coordinator{
 		InputFilesLocation: files,
 		MappingInputStatus: make(map[string]workerStatus),
+		IntermediateFileLoc: make(map[string][]string),
 		IsMappingComplete: false,
 		NumOfReduceTasks: nReduce,
 		ReduceTasksStatus: make([]workerStatus, nReduce),

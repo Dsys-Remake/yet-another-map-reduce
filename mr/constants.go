@@ -20,8 +20,8 @@ const (
 type SubmissionReplyStatus int
 
 const (
-	CONTINUE SubmissionReplyStatus = iota
-	ABORT
+	DONE SubmissionReplyStatus = iota
+	FAILED
 )
 
 
